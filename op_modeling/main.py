@@ -1,8 +1,7 @@
 from termcolor import cprint
 
-from workload.framework.init import init
-from workload.framework.op_register import import_all_fusion_pass
-from workload.framework.op_register import import_all_ops, OpManager, BuilderManager
+from framework.init import init
+from framework.op_register import import_all_ops, BuilderManager
 
 if __name__ == '__main__':
     import_all_ops()
@@ -10,7 +9,7 @@ if __name__ == '__main__':
     op_model_builders = list()
 
     # keys = ["Add", 'MatMulV2']
-    keys = ['MatMulV2']
+    keys = ['Add']
     for key in keys:
         builder = BuilderManager.get(key)
         builder.data_collect()

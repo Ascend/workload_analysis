@@ -2,11 +2,11 @@ from typing import List
 import math
 import numpy as np
 import pandas as pd
-from workload.framework.model_base import FeatureGeneratorBase, StandardizeDescBase
-from workload.framework.op_base import OpBase
-from workload.framework.io_generater import IOGenerator
-from workload.framework.tensor_strategy import GeneralStrategy
-from workload.framework.op_register import RegisterOfOp
+from framework.model_base import FeatureGeneratorBase, StandardizeDescBase
+from framework.op_base import OpBase
+from framework.io_generater import IOGenerator
+from framework.tensor_strategy import GeneralStrategy
+from framework.op_register import RegisterOfOp
 from . import constant
 import random
 import copy

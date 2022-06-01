@@ -3,8 +3,7 @@ from abc import ABC
 
 import numpy as np
 
-from workload.framework.model_base import FeatureGeneratorBase
-from workload.ops.mat_mul_v2 import constant
+from framework.model_base import FeatureGeneratorBase
 
 
 class MatMulV2DetailFeature(FeatureGeneratorBase, ABC):

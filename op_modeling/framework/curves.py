@@ -1,6 +1,3 @@
-import numpy as np
-
-
 def linear_curve(x, w, b):
     """
     线性函数

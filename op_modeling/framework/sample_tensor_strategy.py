@@ -1,6 +1,6 @@
 import itertools
 import random
-from workload.framework.tensor_strategy import TensorStrategy
+from framework.tensor_strategy import TensorStrategy
 
 
 class SampleTensorStrategy(TensorStrategy):

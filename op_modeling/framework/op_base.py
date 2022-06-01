@@ -2,16 +2,15 @@
 import json
 
 from profile import Profile
-from typing import List
 
 import acl
 import acl_ext
 
 import numpy as np
 
-from workload.framework.util import check
-from workload.framework.tensor import Tensor
-from workload.framework.converter import Converter
+from framework.util import check
+from framework.tensor import Tensor
+from framework.converter import Converter
 
 
 class OpBase:

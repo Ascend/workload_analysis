@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import random
 
-from workload.framework.tensor import Tensor
+from framework.tensor import Tensor
 
 
 class TensorGenerate:

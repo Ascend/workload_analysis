@@ -1,12 +1,5 @@
-"""
-算子Profiling数据管理，多个算子下发，采集多个数据，将二者映射并合并
-Author： She Bin (s00607348)
-时间：2022/03/26
-"""
 import os
 import pandas as pd
-import numpy as np
-from termcolor import cprint
 
 
 class ErrorMSG:

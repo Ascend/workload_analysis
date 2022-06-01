@@ -7,13 +7,13 @@ from abc import ABCMeta, abstractmethod
 
 from termcolor import cprint
 
-from workload.config import config
-from workload.framework.ai_metric import AICoreMetric
-from workload.framework.data_manager import DataManager
-from workload.framework.device_manager import Device
-from workload.framework.model_base import StandardizeDescBase
-from workload.framework.op_register import OpManager
-from workload.framework.profile import Profile
+from config import config
+from framework.ai_metric import AICoreMetric
+from framework.data_manager import DataManager
+from framework.device_manager import Device
+from framework.model_base import StandardizeDescBase
+from framework.op_register import OpManager
+from framework.profile import Profile
 
 
 class BuilderInfo:

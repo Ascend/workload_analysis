@@ -6,8 +6,8 @@ import pandas as pd
 from sklearn.model_selection import RepeatedKFold
 from termcolor import cprint
 
-from workload.framework.model_save import OperatorHandle
-from workload.framework.model_save import Serialization
+from framework.model_save import OperatorHandle
+from framework.model_save import Serialization
 
 
 def calc_percentage_error(y1, y2):

@@ -1,5 +1,5 @@
-from workload.framework.op_base import OpBase
-from workload.framework.op_register import RegisterOfOp
+from framework.op_base import OpBase
+from framework.op_register import RegisterOfOp
 
 
 @RegisterOfOp('Add')

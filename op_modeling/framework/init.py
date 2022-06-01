@@ -3,7 +3,7 @@
 import atexit
 
 import acl
-from workload.framework.util import check
+from framework.util import check
 
 
 def init():
