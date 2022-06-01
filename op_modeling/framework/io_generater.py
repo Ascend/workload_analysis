@@ -1,6 +1,6 @@
 import itertools
 from abc import abstractmethod, ABCMeta
-from workload.framework.tensor import Tensor
+from framework.tensor import Tensor
 
 
 class IOGenerator(metaclass=ABCMeta):
@@ -49,9 +49,14 @@ class IOGenerator(metaclass=ABCMeta):
             for io_strategy in io_strategys:
                 if type(io_strategy) is dict:
                     if "value" not in io_strategy.keys():
+                        # 目前看来host的tensor一定是const
                         tensors.append(Tensor(io_strategy, mode='random', is_host=False))
                     else:
-                        tensors.append(Tensor(io_strategy, mode='const', is_host=True))
+                        is_host = io_strategy.get("host", None)
+                        if is_host:
+                            tensors.append(Tensor(io_strategy, mode='const', is_host=True))
+                        else:
+                            tensors.append(Tensor(io_strategy, mode='const', is_host=False))
                 else:
                     tensors.append(io_strategy)
 

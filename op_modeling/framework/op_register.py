@@ -119,17 +119,5 @@ def import_all_ops():
         if os.path.isdir(os.path.join(op_dir, fname)) and not fname.startswith('__'):
             module_names.append(fname)
     for module_name in module_names:
-        importlib.import_module(f'.{module_name}.builder', package='workload.ops')
-        importlib.import_module(f'.{module_name}.{module_name}_op', package='workload.ops')
-
-
-def import_all_fusion_pass():
-    import importlib
-    module_names = []
-    fusion_pass_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fusion_pass')
-    for fname in os.listdir(fusion_pass_dir):
-        if os.path.isdir(os.path.join(fusion_pass_dir, fname)) and not fname.startswith('__'):
-            module_names.append(fname)
-    for module_name in module_names:
-        importlib.import_module(f'.{module_name}.builder', package='workload.fusion_pass')
-        # importlib.import_module(f'.{module_name}.{module_name}_op', package='workload.ops')
+        importlib.import_module(f'.{module_name}.builder', package='ops')
+        importlib.import_module(f'.{module_name}.{module_name}_op', package='ops')

@@ -3,8 +3,8 @@ import json
 
 import acl
 import numpy as np
-from workload.framework.util import check
-from workload.framework.converter import Converter
+from framework.util import check
+from framework.converter import Converter
 
 
 class Tensor:

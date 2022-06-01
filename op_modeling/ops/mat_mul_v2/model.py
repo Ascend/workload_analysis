@@ -1,4 +1,4 @@
-from workload.framework.model_save import OperateModelBase
+from framework.model_save import OperateModelBase
 
 
 class MatMulV2OpModel(OperateModelBase):

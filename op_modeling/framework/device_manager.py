@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import acl
-from workload.framework.util import check
+from framework.util import check
 
 
 class Device:

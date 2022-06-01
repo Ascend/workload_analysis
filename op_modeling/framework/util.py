@@ -1,5 +1,3 @@
-
-
 def check(ret, msg):
     # print(msg)
     if ret != 0:

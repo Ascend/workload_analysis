@@ -4,8 +4,8 @@ from abc import abstractmethod
 
 import pandas as pd
 
-from workload.framework.model_base import FeatureGeneratorBase
-from workload.framework.model_base import ModelBase
+from framework.model_base import FeatureGeneratorBase
+from framework.model_base import ModelBase
 
 
 class Serialization:

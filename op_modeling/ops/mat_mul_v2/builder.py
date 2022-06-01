@@ -1,29 +1,27 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 import os
-from workload.config import config
-from workload.ops.mat_mul_v2.feature import MatMulV2DetailFeature
-from workload.ops.mat_mul_v2.mat_mul_v2_op import (
+from config import config
+from ops.mat_mul_v2.feature import MatMulV2DetailFeature
+from ops.mat_mul_v2.mat_mul_v2_op import (
     MatMulV2IOGenerator,
     MatMulV2Standardize,
     MatMulV2linearFeature,
 )
-from workload.ops.mat_mul_v2.model import MatMulV2OpModel
-from workload.framework.curves import linear_curve
-from workload.framework.model_base import CurveFitBasedModel, PiecewiseLinFitModel
-from workload.framework.op_register import RegisterOfBuilder
-from workload.template.builder.special.multi_process_builder import MultiProcessBuilder
-from workload.framework.op_model_builder import BuilderInfo
+from ops.mat_mul_v2.model import MatMulV2OpModel
+from framework.curves import linear_curve
+from framework.model_base import CurveFitBasedModel, PiecewiseLinFitModel
+from framework.op_register import RegisterOfBuilder
+from template.builder.special.multi_process_builder import MultiProcessBuilder
+from framework.op_model_builder import BuilderInfo
 from . import constant
-from workload.framework.model_base import LogRegressor, PerformanceRegressor
+from framework.model_base import LogRegressor, PerformanceRegressor
 
 
 @RegisterOfBuilder("MatMulV2")
 class MatMulV2Builder(MultiProcessBuilder):
     _train_data_info = list()
     _infer_data_info = list()
-    device_ids = [1]
-    sample_interval = 50
     model_pack = "MatMulV2_" + config.soc_version + ".pkl"
     op_model = MatMulV2OpModel
 

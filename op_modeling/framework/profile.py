@@ -12,9 +12,9 @@ import random
 
 from termcolor import cprint
 
-from workload.framework.ai_metric import AICoreMetric
-from workload.framework.data_manager import DataManager
-from workload.framework.util import check, exec_subprocess
+from framework.ai_metric import AICoreMetric
+from framework.data_manager import DataManager
+from framework.util import check, exec_subprocess
 
 
 def create_tmp_dir(device_id, output_path):
