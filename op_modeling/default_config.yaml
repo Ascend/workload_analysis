@@ -5,6 +5,6 @@ output_dir: "./output"
 # 可用于采集的设备号，可以指定多个
 device_ids: [ 1 ]
 # profiling数据落盘的默认间隔
-sample_interval:20
+sample_interval: 20
 # 生成算子模型的版本
 soc_version: "Ascend310P"

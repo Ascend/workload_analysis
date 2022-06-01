@@ -4,7 +4,7 @@ from pprint import pformat
 
 
 class Config:
-    def __int__(self, cfg_dict):
+    def __init__(self, cfg_dict):
         for k, v in cfg_dict.items():
             if isinstance(v, (list, tuple)):
                 setattr(self, k, [x for x in v])

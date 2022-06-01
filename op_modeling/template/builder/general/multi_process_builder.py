@@ -8,7 +8,6 @@ from termcolor import cprint
 from framework.data_manager import DataManager
 from framework.op_model_builder import BuilderInfo
 from framework.op_register import OpManager
-from framework.util import chunks
 from template.builder.general.train_test_builder import TrainTestBuilder
 
 
@@ -31,6 +30,13 @@ class SimpleGenerator:
 class MultiProcessBuilder(TrainTestBuilder, ABC):
     _train_data_info: List[BuilderInfo] = list()
     _infer_data_info: List[BuilderInfo] = list()
+
+    @classmethod
+    def chunks(cls, lst, n):
+        """Yield successive n-sized chunks from lst."""
+        n_size = int(len(lst) / n) + 1
+        for start in range(0, len(lst), n_size):
+            yield lst[start:start + n_size]
 
     @classmethod
     def data_collect_by_multi_process(cls, model_info_list: List[BuilderInfo]):
@@ -57,7 +63,7 @@ class MultiProcessBuilder(TrainTestBuilder, ABC):
             if not data:
                 continue
 
-            sub_generators = list(chunks(data, device_num))
+            sub_generators = list(cls.chunks(data, device_num))
 
             process_list = []
             for i, device_id in enumerate(cls.device_ids):

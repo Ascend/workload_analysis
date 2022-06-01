@@ -12,7 +12,7 @@ from ops.mat_mul_v2.model import MatMulV2OpModel
 from framework.curves import linear_curve
 from framework.model_base import CurveFitBasedModel, PiecewiseLinFitModel
 from framework.op_register import RegisterOfBuilder
-from template.builder.special.multi_process_builder import MultiProcessBuilder
+from template.builder.general.multi_process_builder import MultiProcessBuilder
 from framework.op_model_builder import BuilderInfo
 from . import constant
 from framework.model_base import LogRegressor, PerformanceRegressor

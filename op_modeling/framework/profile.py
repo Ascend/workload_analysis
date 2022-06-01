@@ -14,7 +14,7 @@ from termcolor import cprint
 
 from framework.ai_metric import AICoreMetric
 from framework.data_manager import DataManager
-from framework.util import check, exec_subprocess
+from framework.util import check
 
 
 def create_tmp_dir(device_id, output_path):
