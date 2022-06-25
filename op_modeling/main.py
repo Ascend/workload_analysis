@@ -8,7 +8,7 @@ if __name__ == '__main__':
     init()
     op_model_builders = list()
 
-    keys = ['FullyConnection']
+    keys = ['Add', 'FullyConnection']
     # keys = ['Add']
     for key in keys:
         builder = BuilderManager.get(key)
