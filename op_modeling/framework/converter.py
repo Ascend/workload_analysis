@@ -28,23 +28,6 @@ class Converter:
         return dtype_mapping_table.get(value, -1)
 
     @staticmethod
-    def reverse_dtype(value):
-        reverse_dtype_mapping_table = {
-            0: "float",
-            1: "float16",
-            2: "int8",
-            3: "int32",
-            4: "uint8",
-            6: "int16",
-            7: "uint16",
-            8: "uint32",
-            9: "int64",
-            11: "double",
-            12: "bool"
-        }
-        return reverse_dtype_mapping_table.get(value, None)
-
-    @staticmethod
     def format(value):
         """
         将普通格式转换为ACL的format格式
@@ -61,29 +44,11 @@ class Converter:
             "FRACTAL_NZ": 29,
             "NDHWC": 27,
             "NCDHW": 30,
-            "DHWCN":31,
+            "DHWCN": 31,
             "NDC1HWC0": 32,
             "FRACTAL_Z_3D": 33
         }
         return format_mapping_table.get(value, -1)
-
-    @staticmethod
-    def reserve_format(value):
-        reserve_format_mapping_table = {
-            0: "NCHW",
-            1: "NHWC",
-            2: "ND",
-            3: "NC1HWC0",
-            4: "FRACTAL_Z",
-            16: "HWCN",
-            29: "FRACTAL_NZ",
-            27: "NDHWC",
-            30: "NCDHW",
-            31: "DHWCN",
-            32: "NDC1HWC0",
-            33: "FRACTAL_Z_3D"
-        }
-        return reserve_format_mapping_table.get(value, None)
 
     @staticmethod
     def malloc_mode(value):

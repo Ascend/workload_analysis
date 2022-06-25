@@ -20,15 +20,6 @@ class Device:
         check(ret, "acl.rt.create_stream (id:{})".format(self._stream))
         self.ops = list()
 
-    def stream(self):
-        return self._stream
-
-    def context(self):
-        return self._context
-
-    def register(self, op):
-        self.ops.append(op)
-
     def __enter__(self):
         return self
 
@@ -48,3 +39,12 @@ class Device:
             self._context = None
         ret = acl.rt.reset_device(self.id)
         check(ret, "acl.rt.reset_device (id:{})".format(self.id))
+
+    def stream(self):
+        return self._stream
+
+    def context(self):
+        return self._context
+
+    def register(self, op):
+        self.ops.append(op)

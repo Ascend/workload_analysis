@@ -3,6 +3,12 @@ from abc import abstractmethod, ABCMeta
 
 
 class BaseStrategy(metaclass=ABCMeta):
+    """
+    该类是策略的基础定义，这里的策略可以理解为一个对象各成员不同取值的排列组合，对于一个策略，其基本行为包括
+    1. 扩充策略
+    2. 获取当前策略中的全部排列组合
+    """
+
     @abstractmethod
     def append(self, obj):
         pass
@@ -31,50 +37,34 @@ class TensorStrategy(BaseStrategy):
         self.formats = list()
         self.origin_format = [None]
         self.shapes = list()
-        # TODO: 针对数值暂未实现
         self.max_num = 1.0
+        self.is_host = False
+        self.mode = 'product'
 
         self._is_instantiated = False
         self.strategys = list()
 
-    def __len__(self):
-        return len(self.formats) * len(self.shapes) * len(self.dtypes)
+    def set_host(self):
+        self.is_host = True
 
-    def format(self, formats):
+    def set_mode(self, mode):
+        self.mode = mode
+
+    def format(self, formats: list):
         self.formats += formats
         return self
 
-    def dtype(self, dtypes):
+    def dtype(self, dtypes: list):
         self.dtypes += dtypes
         return self
 
-    def shape(self, shapes: list(tuple())):
+    def shape(self, shapes: list):
         """
         :param shapes:
         :return:
         """
         self.shapes += shapes
         return self
-
-    def _instantiate(self):
-        """
-        依据策略规则，形成整体策略的穷举列表
-        整体步骤如下：
-        1. 将dtype,format, shape进行全排列组合
-        2. 由于format和shape之间有对应关系，所以组合后需要移除不合理内容
-        3.
-        :return: list
-        """
-
-        # 去重
-        self.formats = list(set(self.formats))
-        self.dtypes = list(set(self.dtypes))
-
-        if self._is_instantiated:
-            return
-        for item in itertools.product(self.shapes, self.formats, self.dtypes):
-            shape, format, dtype = item
-            self.strategys.append({"format": format, "dtype": dtype, "shape": shape})
 
     def append(self, obj):
         if not self._is_instantiated:
@@ -87,62 +77,39 @@ class TensorStrategy(BaseStrategy):
             self._instantiate()
         return self.strategys
 
-
-class ConstTensorStrategy(BaseStrategy):
-    def __init__(self):
-        self.formats = ['ND']
-        self.shapes = list()
-
-        self._is_instantiated = False
-        self.dtypes = list()
-        self.values = list()
-
-        self.strategies = list()
-
-    def __len__(self):
-        return len(self.formats) * len(self.shapes) * len(self.dtypes) * len(self.values)
-
-    def value(self, values):
-        self.values += values
-        return self
-
-    def shape(self, shapes):
-        """
-        :param shapes:
-        :return:
-        """
-        self.shapes += shapes
-        return self
-
-    def append(self, obj):
-        if not self._is_instantiated:
-            self._instantiate()
-        self.strategies += obj.get()
-        return self
-
-    def dtype(self, dtypes):
-        self.dtypes += dtypes
-        return self
+    def param_check(self):
+        if len(self.shapes) != len(self.formats) or len(self.formats) != len(self.dtypes):
+            raise Exception('Size of shapes: {}, formats: {}, dtypes: {}, must be same.'
+                            .format(len(self.shapes), len(self.formats), len(self.dtypes)))
 
     def _instantiate(self):
-        # 去重
-        self.dtypes = list(set(self.dtypes))
+        """
+        依据策略规则，形成整体策略的穷举列表
+        整体步骤如下：
+        1. 将dtype,format, shape进行全排列组合
+        2. 由于format和shape之间有对应关系，所以组合后需要移除不合理内容
+        :return: list
+        """
 
         if self._is_instantiated:
             return
-        for item in itertools.product(self.shapes, self.formats, self.dtypes, self.values):
-            shape, format_, dtype, value = item
-            self.strategies.append({"format": format_, "dtype": dtype, "shape": shape, "value": value})
+        if self.mode == 'zip':
+            self.param_check()
+            groups = zip(self.shapes, self.formats, self.dtypes)
+        else:
+            # product
+            # 去重
+            self.formats = list(set(self.formats))
+            self.dtypes = list(set(self.dtypes))
+            groups = itertools.product(self.shapes, self.formats, self.dtypes)
+        for item in groups:
+            shape, format_, dtype = item
+            self.strategys.append({"format": format_, "dtype": dtype, "shape": shape, "is_host": self.is_host})
 
-    def get(self):
-        if not self._is_instantiated:
-            self._instantiate()
-        return self.strategies
 
-
-class GeneralStrategy(BaseStrategy):
+class ValueStrategy(BaseStrategy):
     """
-    广义策略类
+    该类在使用过程中主要维护的是纯数值的策略
     """
 
     def __init__(self, cases=None):
@@ -150,7 +117,6 @@ class GeneralStrategy(BaseStrategy):
             self.cases = []
         else:
             self.cases = cases
-        self.index = -1
 
     def __len__(self):
         return len(self.cases)

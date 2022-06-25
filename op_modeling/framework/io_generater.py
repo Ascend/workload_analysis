@@ -1,6 +1,8 @@
 import itertools
 from abc import abstractmethod, ABCMeta
-from framework.tensor import Tensor
+
+from framework.tensor import HostTensor
+from framework.tensor import DeviceTensor
 
 
 class IOGenerator(metaclass=ABCMeta):
@@ -11,10 +13,56 @@ class IOGenerator(metaclass=ABCMeta):
     2. 某个输入依赖另一个输入的策略
     3. 各个输入输出间没有关系
     """
-    mode = "product"
+
+    # mode表示策略的关联类型，当前已有的关联类型包括
+    # 1. product 求策略的笛卡尔积（该类型可能导致样本数过大采集困难）
+    # 2. zip 打包策略，对各策略的case采取zip的一对一打包
+    mode = "zip"
 
     def __init__(self, strategys):
         self.strategys = strategys
+
+    def __call__(self, *args, **kwargs):
+        concretization_strategys = []
+        for strategy in self.strategys:
+            concretization_strategys.append(strategy.get())
+
+        groups = []
+        if self.mode == "zip":
+            for group in zip(*concretization_strategys):
+                groups.append(group)
+        # product
+        else:
+            groups = itertools.product(*concretization_strategys)
+
+        for item in groups:
+            io_strategys = self.get_io_strategys(*item)
+            # 对于部分算子可能在get_io_strategys中发现策略的组合不可用，在此处直接丢弃
+            if len(io_strategys) == 0:
+                continue
+            io = []
+            for io_strategy in io_strategys:
+                if self._is_tensor_strategy(io_strategy):
+                    tensor = self._generate_tensor(io_strategy)
+                    io.append(tensor)
+                else:
+                    io.append(io_strategy)
+
+            yield io
+
+    @classmethod
+    def _generate_tensor(cls, tensor_strategy):
+        is_host = tensor_strategy.get("is_host")
+        if is_host:
+            return HostTensor(tensor_strategy)
+        else:
+            return DeviceTensor(tensor_strategy)
+
+    @classmethod
+    def _is_tensor_strategy(cls, io_strategy):
+        if type(io_strategy) is dict:
+            return True
+        return False
 
     @abstractmethod
     def get_io_strategys(self, *assemble_strategy):
@@ -26,38 +74,3 @@ class IOGenerator(metaclass=ABCMeta):
         :return:
         """
         pass
-
-    def __call__(self, *args, **kwargs):
-        concretization_strategys = []
-        for strategy in self.strategys:
-            concretization_strategys.append(strategy.get())
-
-        if self.mode == "product":
-            groups = itertools.product(*concretization_strategys)
-        else:
-            groups = []
-            n_cases = len(concretization_strategys[0])
-            for i in range(n_cases):
-                case = [item[i] for item in concretization_strategys]
-                groups.append(case)
-
-        for item in groups:
-            io_strategys = self.get_io_strategys(*item)
-            if len(io_strategys) == 0:
-                continue
-            tensors = []
-            for io_strategy in io_strategys:
-                if type(io_strategy) is dict:
-                    if "value" not in io_strategy.keys():
-                        # 目前看来host的tensor一定是const
-                        tensors.append(Tensor(io_strategy, mode='random', is_host=False))
-                    else:
-                        is_host = io_strategy.get("host", None)
-                        if is_host:
-                            tensors.append(Tensor(io_strategy, mode='const', is_host=True))
-                        else:
-                            tensors.append(Tensor(io_strategy, mode='const', is_host=False))
-                else:
-                    tensors.append(io_strategy)
-
-            yield tensors

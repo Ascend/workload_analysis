@@ -6,8 +6,8 @@ import pandas as pd
 from sklearn.model_selection import RepeatedKFold
 from termcolor import cprint
 
-from framework.model_save import OperatorHandle
-from framework.model_save import Serialization
+from framework.model_packing import OperatorHandle
+from framework.model_packing import deserialization
 
 
 def calc_percentage_error(y1, y2):
@@ -17,7 +17,7 @@ def calc_percentage_error(y1, y2):
     :param y2:
     :return:
     """
-    return np.abs(y1 - y2) / (1e-10 + y1)
+    return np.abs(y1 - y2) / (np.finfo(float).eps + y1)
 
 
 class ModelProcess:
@@ -27,7 +27,7 @@ class ModelProcess:
 
     def __init__(self, op_handle, n_splits=5):
         """
-        :param model: 模型本身需要开发人员自己定义，然后设置到这个流程中
+        :param op_handle: 模型本身需要开发人员自己定义，然后设置到这个流程中
         """
 
         self.op_handle: OperatorHandle = op_handle
@@ -36,7 +36,8 @@ class ModelProcess:
     def print_feature_importance(self, feature_names):
         feature_importance = self.op_handle.model.get_feature_importance()
         if feature_importance is not None and feature_names is not None:
-            assert len(feature_importance) == len(feature_names)
+            if len(feature_importance) != len(feature_names):
+                raise Exception("feature importance mismatch feature names")
 
             features = []
             for i, feature_name in enumerate(feature_names):
@@ -74,7 +75,7 @@ class ModelProcess:
         """
         载入已经保存的模型，用于预测
         """
-        self.op_handle = Serialization.deserialization(save_path)
+        self.op_handle = deserialization(save_path)
 
     def train_stage(self, train_data, train_label):
         self.op_handle.model.fit(train_data, train_label)
@@ -94,11 +95,9 @@ class ModelProcess:
             '80_percentage_error': lambda y1, y2: np.percentile(calc_percentage_error(y1, y2), 80),
             'max_percentage_error': lambda y1, y2: np.max(calc_percentage_error(y1, y2))
         }
-        # print("The performance of trained model is as follows: ")
         ret = dict()
         for i_score_name, i_fcn in scores.items():
             i_score_val = i_fcn(test_label, test_predict)
-            # cprint(f"The performance of {i_score_name} is: {i_score_val}", on_color='on_red')
             ret[i_score_name] = i_score_val
 
         return ret
