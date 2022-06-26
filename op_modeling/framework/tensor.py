@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import json
+from abc import abstractmethod
 
 import acl
 import numpy as np
@@ -13,14 +14,14 @@ class Tensor:
     该类的输入是具体的策略实例化信息
     """
 
-    def __init__(self, strategy: dict = None, mode="random", is_host=False):
+    def __init__(self, strategy: dict = None):
         self.dtype = 'float'
         self.format = 'ND'
         self.origin_format = 'ND'
         self.shape = (8, 16)
         self.max_num = 1
-        self.mode = mode
-        self.is_host = is_host
+        self.mode = "random"
+        self.is_host = False
 
         self.buffer = None
         self.ptr = None
@@ -31,67 +32,41 @@ class Tensor:
         if strategy:
             self.set_strategy(strategy)
 
-    @staticmethod
-    def from_strategy(shape, dformat="ND", dtype="float16", mode="random", is_host=False):
-        tensor = Tensor(dict(shape=shape, format=dformat, dtype=dtype), mode=mode, is_host=is_host)
-        return tensor
+    def __del__(self):
+        self._release_source()
 
-    @staticmethod
-    def from_numpy(data, dtype="int32", is_host=True):
-        tensor = Tensor(dict(shape=list(data.shape), format="ND", dtype=dtype, value=data.tolist()), mode="const",
-                        is_host=is_host)
-        return tensor
+    def __str__(self):
+        fmt = "dtype:{}, format:{}, shape:{}"
+        return fmt.format(self.dtype, self.format, self.shape)
 
-    def _release_source(self):
-        if self.buffer:
-            ret = acl.destroy_data_buffer(self.buffer)
-            check(ret, "acl.destroy_data_buffer (addr:{})".format(self.buffer))
-            self.buffer = None
-            if not self.is_host:
-                ret = acl.rt.free(self.ptr)
-                check(ret, "acl.rt.free (addr:{})".format(self.ptr))
-            else:
-                ret = acl.rt.free_host(self.ptr)
-                check(ret, "acl.rt.free_host (addr:{})".format(self.ptr))
-            self.ptr = None
+    @abstractmethod
+    def malloc(self, size):
+        """
+        调用acl接口申请tensor内存
+        """
+        raise Exception("To be implement")
 
-        if self.desc:
-            acl.destroy_tensor_desc(self.desc)
-            check(0, "acl.destroy_tensor_desc (addr:{})".format(self.desc))
-            self.desc = None
+    @abstractmethod
+    def free(self, ptr):
+        """
+        调用acl接口释放tensor内存
+        """
+        raise Exception("To be implement")
 
     def force_del(self):
         self._release_source()
 
-    def __del__(self):
-        self._release_source()
-
     def set_strategy(self, strategy: dict):
-        for key, value in strategy.items():
-            self.__setattr__(key, value)
-
-        # self.dtype = strategy.get("dtype")
-        # self.format = strategy.get("format")
-        # self.shape = strategy.get("shape")
-        # self.max_num = strategy.get("max_num")
-        # if "origin_format" in strategy.keys():
-        #     self.origin_format = strategy.get("origin_format")
-        # if "value" in strategy.keys():
-        #     self.value = strategy.get("value")
+        self.dtype = strategy.get("dtype")
+        self.format = strategy.get("format")
+        self.shape = strategy.get("shape")
+        self.is_host = strategy.get("is_host")
+        if "value" in strategy.keys():
+            self.value = strategy.get("value")
+            self.mode = "const"
 
     def get_strategy(self) -> dict:
-        if self.strategy:
-            return self.strategy
-        else:
-            fmt = {"format": self.format,
-                    "dtype": self.dtype,
-                    "shape": self.shape,
-                    "origin_format": self.origin_format,
-                    "value": self.value}
-        return fmt
-
-    def __dict__(self):
-        return self.get_strategy()
+        return self.strategy
 
     def get_desc(self):
         """
@@ -116,26 +91,11 @@ class Tensor:
             if not self.desc:
                 self.get_desc()
             size = acl.get_tensor_desc_size(self.desc)
-            if self.is_host:
-                self.ptr, ret = acl.rt.malloc_host(size)
-                check(ret, "acl.rt.malloc_host (addr:{}, size:{})".format(self.ptr, size))
-                # 对于host侧的tensor无需创建buffer
-                self.buffer = acl.create_data_buffer(self.ptr, size)
-                check(0, "acl.create_data_buffer (addr:{})".format(self.buffer))
-            else:
-                self.ptr, ret = acl.rt.malloc(size, Converter.malloc_mode("huge_first"))
-                check(ret, "acl.rt.malloc (addr:{}, size:{})".format(self.ptr, size))
-                self.buffer = acl.create_data_buffer(self.ptr, size)
-                check(0, "acl.create_data_buffer (addr:{})".format(self.buffer))
-        return self.buffer
 
-    def __str__(self):
-        if self.is_host and self.value:
-            fmt = "dtype:{}, format:{}, shape:{}, value:{}"
-            return fmt.format(self.dtype, self.format, self.shape, self.value)
-        else:
-            fmt = "dtype:{}, format:{}, shape:{}"
-            return fmt.format(self.dtype, self.format, self.shape)
+            self.ptr = self.malloc(size)
+            self.buffer = acl.create_data_buffer(self.ptr, size)
+            check(0, "acl.create_data_buffer (addr:{})".format(self.buffer))
+        return self.buffer
 
     def get_value(self):
         """
@@ -143,7 +103,6 @@ class Tensor:
         :return:
         """
 
-        # TODO: 需要后续支持numpy的内容
         def dtype_to_numpy(value):
             mapping_table = {
                 "float": np.float32,
@@ -160,16 +119,53 @@ class Tensor:
             }
             return mapping_table.get(value)
 
-        # TODO: 需要扩展或者针对性地验证
         if self.mode == "random":
-            if self.dtype in set(["float", "float16", "double"]):
+            if self.dtype in {"float", "float16", "double"}:
                 return self.max_num * np.random.rand(*self.shape).astype(dtype_to_numpy(self.dtype))
             return np.random.randint(self.max_num, size=self.shape).astype(dtype_to_numpy(self.dtype))
-        else:
+        # const
+        elif self.mode == "const":
             return np.array(self.value).astype(dtype_to_numpy(self.dtype))
+        else:
+            raise Exception(f"Unsupported tensor mode: {self.mode}")
 
     def get_size(self):
         """
         获取Tensor的元素大小
         """
         return np.prod(self.shape)
+
+    def _release_source(self):
+        if self.buffer:
+            ret = acl.destroy_data_buffer(self.buffer)
+            check(ret, "acl.destroy_data_buffer (addr:{})".format(self.buffer))
+            self.buffer = None
+            self.free(self.ptr)
+            self.ptr = None
+
+        if self.desc:
+            acl.destroy_tensor_desc(self.desc)
+            check(0, "acl.destroy_tensor_desc (addr:{})".format(self.desc))
+            self.desc = None
+
+
+class DeviceTensor(Tensor):
+    def malloc(self, size):
+        ptr, ret = acl.rt.malloc(size, Converter.malloc_mode("huge_first"))
+        check(ret, "acl.rt.malloc (addr:{}, size:{})".format(ptr, size))
+        return ptr
+
+    def free(self, ptr):
+        ret = acl.rt.free(ptr)
+        check(ret, "acl.rt.free (addr:{})".format(ptr))
+
+
+class HostTensor(Tensor):
+    def malloc(self, size):
+        ptr, ret = acl.rt.malloc_host(size)
+        check(ret, "acl.rt.malloc_host (addr:{}, size:{})".format(ptr, size))
+        return ptr
+
+    def free(self, ptr):
+        ret = acl.rt.free_host(ptr)
+        check(ret, "acl.rt.free_host (addr:{})".format(ptr))

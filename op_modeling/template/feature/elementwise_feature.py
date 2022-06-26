@@ -1,12 +1,12 @@
 import numpy as np
 
-from framework.model_base import FeatureGeneratorBase
+from framework.feature_base import FeatureGeneratorBase
 
 
-class SingleVectorFeatureBase(FeatureGeneratorBase):
+class ElementwiseFlopsFeature(FeatureGeneratorBase):
     def cal_feature(self, inputs, outputs, attrs: dict):
         """
-        Relu算子的计算值理论上只与计算量相关
+        计算量
         """
         input_shape = inputs[0]["shape"]
         flops = np.prod(input_shape)

@@ -1,5 +1,5 @@
 # !/usr/bin/env bash
-ASCEND_HOME=/home/hyp/ascend-toolkit/latest
+ASCEND_HOME=/usr/local/Ascend/ascend-toolkit/latest
 ASCEND_DRIVER_HOME=/usr/local/Ascend/driver
 SCRIPT=$(readlink -f \"$0\")
 SHELL_FOLDER=$(dirname $SCRIPT)

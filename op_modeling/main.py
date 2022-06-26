@@ -8,12 +8,13 @@ if __name__ == '__main__':
     init()
     op_model_builders = list()
 
-    # keys = ["Add", 'MatMulV2']
-    keys = ['Add']
+    keys = ['Add', 'FullyConnection']
+    # keys = ['Add']
     for key in keys:
         builder = BuilderManager.get(key)
         builder.data_collect()
         builder.modeling()
+        builder.pack()
         builder.test()
 
     # 运行所有内容
