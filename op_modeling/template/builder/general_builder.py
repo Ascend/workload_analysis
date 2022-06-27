@@ -366,13 +366,11 @@ class GeneralBuilder(OpModelBuilder, ABC):
         for path in tmp_device_data_paths:
             if os.path.exists(path) and os.path.getsize(path) != 0:
                 dfs.append(pd.read_csv(path))
-                # 清空文件内容
-                open(path, 'w').close()
-            else:
-                flags = os.O_RDWR | os.O_CREAT
-                modes = stat.S_IWUSR | stat.S_IRUSR
-                fd = os.fdopen(os.open(path, flags, modes), 'w')
-                fd.close()
+                os.remove(path)
+            flags = os.O_RDWR | os.O_CREAT
+            modes = stat.S_IWUSR | stat.S_IRUSR
+            fd = os.fdopen(os.open(path, flags, modes), 'w')
+            fd.close()
 
         if dfs:
             df = pd.concat(dfs)
