@@ -55,7 +55,7 @@ class FullyConnectionIOGenerator(RandomShapeValueGenerator):
             else:
                 y_dtype = random.choice(['float', 'float16'])
             y_shape = x_shape[:axis] + [random.randint(16, 2048)]
-            while y_shape[axis] * self.get_size(x_shape[axis:]) * 2 > self.size_of_2gb:
+            while y_shape[axis] * self.get_size(x_shape[axis:]) * 2 > self.size_of_1gb:
                 y_shape[axis] = max(int(y_shape[-1] / 2), 1)
             y_shapes.append(y_shape)
             y_dtypes.append(y_dtype)

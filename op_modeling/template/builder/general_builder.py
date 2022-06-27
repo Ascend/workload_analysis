@@ -121,7 +121,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
         cls.test_data_collects.clear()
         cls.train_infos.clear()
         cls.test_infos.clear()
-        
+
     @classmethod
     def data_collect(cls, mode='all'):
         """
@@ -366,6 +366,8 @@ class GeneralBuilder(OpModelBuilder, ABC):
         for path in tmp_device_data_paths:
             if os.path.exists(path) and os.path.getsize(path) != 0:
                 dfs.append(pd.read_csv(path))
+                # 清空文件内容
+                open(path, 'w').close()
             else:
                 flags = os.O_RDWR | os.O_CREAT
                 modes = stat.S_IWUSR | stat.S_IRUSR
@@ -380,17 +382,8 @@ class GeneralBuilder(OpModelBuilder, ABC):
     @classmethod
     def _get_not_done_samples(cls, data_save_path, io_generator):
         def done_before(done_prof, desc):
-            matches = []
-            for _, row in done_prof.iterrows():
-                if row['Original Inputs'] == desc['Original Inputs'] and \
-                        row['Attributes'] == desc['Attributes']:
-                    match = True
-                else:
-                    match = False
-                matches.append(match)
-
-            pattern = pd.Series(matches)
-            match_item = done_prof[pattern]
+            match_item = done_prof.loc[(done_prof['Original Inputs'] == desc['Original Inputs']) &
+                                       (done_prof['Attributes'] == desc['Attributes'])]
             if match_item.empty:
                 return False
             return True
