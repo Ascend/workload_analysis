@@ -49,18 +49,18 @@ class FullyConnectionIOGenerator(RandomShapeValueGenerator):
         w_shapes = []
         b_shapes = []
         for x_shape, x_dtype, axis, transpose in zip(x_shapes, x_dtypes, axes, transposes):
+            w_shape = [random.randint(16, 2048), self.get_size(x_shape[axis:])]
+            while self.get_size(w_shape) * 2 > self.size_of_half_gb:
+                # w只有2维，此处特殊处理，由于在x生成的时候已经限制了x的大小，因此w第0维是1时一定能跳出循环
+                w_shape[0] = max(int(w_shape[0] / 2), 1)
             # 此处算子在实现上存在限制，输入的dtype为int8则输出的dtype为int32
             if x_dtype == 'int8':
                 y_dtype = 'int32'
             else:
                 y_dtype = random.choice(['float', 'float16'])
-            y_shape = x_shape[:axis] + [random.randint(16, 2048)]
-            while y_shape[axis] * self.get_size(x_shape[axis:]) * 2 > self.size_of_1gb:
-                y_shape[axis] = max(int(y_shape[-1] / 2), 1)
+            y_shape = x_shape[:axis] + [w_shape[0]]
             y_shapes.append(y_shape)
             y_dtypes.append(y_dtype)
-
-            w_shape = [y_shape[axis], self.get_size(x_shape[axis:])]
 
             if transpose:
                 w_shape = [self.get_size(x_shape[axis:]), y_shape[axis]]
