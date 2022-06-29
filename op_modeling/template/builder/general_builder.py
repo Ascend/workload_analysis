@@ -61,10 +61,10 @@ class TrainTestDesc:
     定义一个训练或测试过程的基本元素
     """
 
-    def __init__(self, dataset:CSVDataset, filter_, model_descs: List[ModelDesc]):
+    def __init__(self, dataset: CSVDataset, filter_, model_descs: List[ModelDesc]):
         """
         :param dataset: 训练使用的数据集
-        :param filter_: 用于筛选profiling数据的筛选器，为一个lamda表达式，返回值为pd.Series
+        :param filter_: 用于筛选数据集的筛选器，为一个lamda表达式，返回值为pd.Series
         :param model_descs: 训练使用的模型
         """
         self.dataset = dataset
@@ -313,7 +313,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
                 data = pd.concat((data, screen), axis=1)
 
                 model_prefix = os.path.splitext(model_save_path)[0]
-                data.to_csv(f"{model_prefix}_data_test.csv", index=False)
+                data.to_csv(f"{model_prefix}_test_data.csv", index=False)
 
     @classmethod
     def _pack(cls, pack_infos: List[PackDesc]):
