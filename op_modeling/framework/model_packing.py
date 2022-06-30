@@ -1,4 +1,5 @@
 import os
+import stat
 import pickle
 from abc import abstractmethod
 
@@ -9,7 +10,8 @@ from framework.model_base import ModelBase
 
 
 def serialize(obj: any, file_path: str) -> None:
-    with os.fdopen(os.open(file_path, os.O_WRONLY | os.O_CREAT, 0o440), 'wb') as f:
+    with os.fdopen(os.open(file_path, os.O_WRONLY | os.O_CREAT, stat.S_IRUSR | stat.S_IWUSR), 'wb') as f:
+        f.truncate()
         pickle.dump(obj, f)
 
 

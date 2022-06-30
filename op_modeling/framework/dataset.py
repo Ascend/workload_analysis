@@ -13,9 +13,6 @@ class DatasetBase(metaclass=ABCMeta):
     2. 获取标签
     """
 
-    def __init__(self, fea_ge: FeatureGeneratorBase):
-        self.fea_ge: FeatureGeneratorBase = fea_ge
-
     def get_dataset(self):
         return self.get_features(), self.get_labels()
 
@@ -35,14 +32,16 @@ class CSVDataset(DatasetBase):
     2. 从profiling数据（Input/Output Shapes, Input/Output Data Types, Input/Output Formats）获取算子最终在芯片上的形态
     """
 
-    def __init__(self, file, fea_ge: FeatureGeneratorBase, label="aicore_time(us)"):
-        self.data = pd.read_csv(file, keep_default_na=False, na_values=['NA'])
+    def __init__(self, file, label="aicore_time(us)", soc_version="Ascend310P"):
+        self.file = file
+        self.data = None
+        self.fea_ge = None
+        self.soc_version = soc_version
 
         if type(label) is list:
             self.label = label
         else:
             self.label = [label]
-        super().__init__(fea_ge)
 
     @classmethod
     def parse_origin_inout(cls, desc):
@@ -97,13 +96,22 @@ class CSVDataset(DatasetBase):
 
         return ret
 
+    def set_feature_generator(self, fea_ge):
+        self.fea_ge = fea_ge
+
     def get_original_data(self):
+        if self.data is None:
+            self.data = pd.read_csv(self.file, keep_default_na=False, na_values=['NA'])
         return self.data
 
     def get_features(self) -> pd.DataFrame:
+        if self.data is None:
+            self.get_original_data()
         train_data = []
         for _, row in self.data.iterrows():
             inputs, outputs, attributes = self._parse_row(row)
+            if self.fea_ge is None:
+                raise Exception("Please set feature generate first")
             feature = self.fea_ge.cal_feature(inputs, outputs, attributes)
             train_data.append(feature)
 
@@ -111,6 +119,8 @@ class CSVDataset(DatasetBase):
         return ret
 
     def get_labels(self) -> pd.DataFrame:
+        if self.data is None:
+            self.get_original_data()
         return self.data[self.label]
 
     def _parse_row(self, row):

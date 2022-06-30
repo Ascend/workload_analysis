@@ -1,13 +1,15 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
+import copy
 import json
 
 import pandas as pd
 
 from config import env
+from framework.dataset import CSVDataset
 from framework.model_base import LogRegressor
 from framework.model_base import PiecewiseLinFitModel
-from template.builder.general_builder import CollectDataDesc
+from template.builder.general_builder import CollectDataDesc, PackDesc
 from template.builder.general_builder import GeneralBuilder
 from template.builder.general_builder import ModelDesc
 from template.builder.general_builder import TrainTestDesc
@@ -50,6 +52,7 @@ class SingleInOpBuilder(GeneralBuilder):
     @classmethod
     def init(cls):
         cls.clear()
+        # 此处可以设置多个模型进行对比训练
         models = [
             # 分段线性模型
             ModelDesc("LogPiecewiseLinear", LogRegressor(estimator=PiecewiseLinFitModel(n_break_point=3)),
@@ -67,17 +70,32 @@ class SingleInOpBuilder(GeneralBuilder):
         test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, env.soc_version))
         cls.test_data_collects = [CollectDataDesc(test_io_generator, test_data_file)]
 
-        # 训练、测试过程设置
         for soc_version in cls.soc_versions:
-            # 训练和推理过程，芯片型号可由开发者指定
+            # 训练和推理过程，芯片型号由开发者指定
             train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, soc_version))
             test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, soc_version))
+            pack_path = cls.get_pack_model_path(cls.get_pack_file(cls.op_type, soc_version))
+            pack_desc = PackDesc(cls.model_pack, pack_path)
             for dtype in cls.dtypes:
                 filter_ = cls.get_filter(dtype)
-                train_desc = TrainTestDesc(train_data_file, filter_, models, dtype)
+                # 此处是为了保证生成的模型名不重复
+                suffix = f"{dtype}_{soc_version}.pkl"
+                # 更新模型的保存路径
+                models_ = copy.deepcopy(models)
+                for model in models_:
+                    model.update_save_path(cls.get_handler_path(cls.op_type, f"{model.model_name}_{suffix}"))
+                train_desc = TrainTestDesc(CSVDataset(train_data_file, soc_version=soc_version), filter_, models_)
                 cls.train_infos.append(train_desc)
-                test_desc = TrainTestDesc(test_data_file, filter_, models, dtype)
+                test_desc = TrainTestDesc(CSVDataset(test_data_file, soc_version=soc_version), filter_, models_)
                 cls.test_infos.append(test_desc)
+
+                # 打包过程设置
+                # 最终打包时每一个训练流程只有一个模型用于打包，故此处特殊处理
+                handler_path = models_[0].save_path
+                # 此类模型使用dtype作为打包模型的key
+                key = dtype
+                pack_desc.append(key, handler_path)
+            cls.pack_infos.append(pack_desc)
 
 
 class BinaryInOpBuilder(SingleInOpBuilder):

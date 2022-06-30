@@ -45,8 +45,8 @@ class OpModelBuilder(metaclass=ABCMeta):
         raise Exception("test is not impl.")
 
     @classmethod
-    def get_data_path(cls, op_type, filename):
-        op_data_dir = cls.get_data_dir(op_type)
+    def get_data_path(cls, op_type, filename, sub_dir="ops"):
+        op_data_dir = cls.get_data_dir(op_type, sub_dir)
         return os.path.join(op_data_dir, filename)
 
     @classmethod
@@ -55,8 +55,8 @@ class OpModelBuilder(metaclass=ABCMeta):
         return os.path.join(pack_dir, f"{filename}")
 
     @classmethod
-    def get_handler_path(cls, op_type, filename):
-        op_data_dir = cls.get_output_dir(op_type)
+    def get_handler_path(cls, op_type, filename, sub_dir="ops"):
+        op_data_dir = cls.get_output_dir(op_type, sub_dir)
         return os.path.join(op_data_dir, f"{filename}")
 
     @classmethod
@@ -74,19 +74,23 @@ class OpModelBuilder(metaclass=ABCMeta):
         return op_type + "_" + soc_version + "_test.csv"
 
     @classmethod
-    def get_data_dir(cls, op_type):
+    def get_pack_file(cls, op_type, soc_version):
+        return op_type + "_" + soc_version + ".pkl"
+
+    @classmethod
+    def get_data_dir(cls, op_type, sub_dir="ops"):
         if not os.path.exists(cls.data_dir):
             os.makedirs(cls.data_dir)
-        op_data_dir = os.path.join(cls.data_dir, "ops", op_type)
+        op_data_dir = os.path.join(cls.data_dir, sub_dir, op_type)
         if not os.path.exists(op_data_dir):
             os.makedirs(op_data_dir)
         return op_data_dir
 
     @classmethod
-    def get_output_dir(cls, op_type):
+    def get_output_dir(cls, op_type, sub_dir="ops"):
         if not os.path.exists(cls.output_dir):
             os.makedirs(cls.output_dir)
-        op_output_dir = os.path.join(cls.output_dir, "ops", op_type)
+        op_output_dir = os.path.join(cls.output_dir, sub_dir, op_type)
         if not os.path.exists(op_output_dir):
             os.makedirs(op_output_dir)
         return op_output_dir
@@ -106,6 +110,7 @@ class OpModelBuilder(metaclass=ABCMeta):
             start = time.time()
             op_task = op(d, *io)
             prof.add_op_origin_desc(op_task.get_unique_desc())
+
             try:
                 op_task.run(prof)
             except Exception as error:

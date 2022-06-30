@@ -89,7 +89,7 @@ class RandomShapeValueGenerator(IOGenerator, ABC):
         self.dtype = sample_dtype
         self.format = sample_format
         self.n_sample = n_sample
-        self.size_of_2gb = 1.5 * 1024 * 1024 * 1024 / 4
+        self.size_of_half_gb = 0.5 * 1024 * 1024 * 1024 / 4
         strategies = []
         super().__init__(strategies)
 
@@ -143,7 +143,7 @@ class RandomShapeValueGenerator(IOGenerator, ABC):
                     # ND
                     dim = random.randint(1, 5)
                     shape = [random.randint(2, 2048) for _ in range(dim)]
-                while self.get_size(shape) * 2 > self.size_of_2gb:
+                while self.get_size(shape) * 2 > self.size_of_half_gb:
                     index = random.randint(0, len(shape) - 1)
                     shape[index] = max(int(shape[index] / 2), 1)
                 x_shapes.append(shape)

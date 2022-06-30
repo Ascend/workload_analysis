@@ -11,11 +11,11 @@ import pandas as pd
 import numpy as np
 from termcolor import cprint
 
+from framework.dataset import CSVDataset
 from framework.model_process import ModelProcess
 from framework.model_packing import OperatorHandle
 from framework.model_packing import serialize, deserialization
 from framework.op_model_builder import OpModelBuilder
-from framework.dataset import CSVDataset
 
 
 class CollectDataDesc:
@@ -37,18 +37,23 @@ class ModelDesc:
     定义一个模型的基本元素
     """
 
-    def __init__(self, model_name, regressor, fea_ge):
+    def __init__(self, model_name, regressor, fea_ge, save_path=""):
         """
         :param model_name: 模型名
         :param regressor: 训练使用的回归器
         :param fea_ge: 使用的特征生成类(FeatureGeneratorBase的子类)
+        :param save_path: 模型保存的路径
         """
         self.model_name = model_name
         self.regressor = regressor
         self.fea_ge = fea_ge
+        self.save_path = save_path
 
     def get(self):
         return self.model_name, self.regressor, self.fea_ge
+
+    def update_save_path(self, path):
+        self.save_path = path
 
 
 class TrainTestDesc:
@@ -56,17 +61,15 @@ class TrainTestDesc:
     定义一个训练或测试过程的基本元素
     """
 
-    def __init__(self, data_file, filter_, model_descs: List[ModelDesc], handler_key):
+    def __init__(self, dataset: CSVDataset, filter_, model_descs: List[ModelDesc]):
         """
-        :param data_file: profiling数据文件
-        :param filter_: 用于筛选profiling数据的筛选器，为一个lamda表达式，返回值为pd.Series
+        :param dataset: 训练使用的数据集
+        :param filter_: 用于筛选数据集的筛选器，为一个lamda表达式，返回值为pd.Series
         :param model_descs: 训练使用的模型
-        :param handler_key: 此过程获得的handler在模型打包时对应的key
         """
-        self.data_file = data_file
+        self.dataset = dataset
         self.filter = filter_
         self.model_descs = model_descs
-        self.handler_key = handler_key
 
 
 class PackDesc:
@@ -101,6 +104,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
     test_data_collects: List[CollectDataDesc] = list()  # 定义测试数据采集
     train_infos: List[TrainTestDesc] = list()  # 定义训练过程
     test_infos: List[TrainTestDesc] = list()  # 定义测试过程
+    pack_infos: List[PackDesc] = list()  # 定义打包过程
     model_pack = None
 
     @classmethod
@@ -113,7 +117,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
         3. 训练、测试使用的回归器和特征
         4. 最终保存的评估模型
         """
-        pass
+        raise Exception("init is not impl")
 
     @classmethod
     def clear(cls):
@@ -121,7 +125,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
         cls.test_data_collects.clear()
         cls.train_infos.clear()
         cls.test_infos.clear()
-        
+
     @classmethod
     def data_collect(cls, mode='all'):
         """
@@ -147,22 +151,10 @@ class GeneralBuilder(OpModelBuilder, ABC):
 
     @classmethod
     def pack(cls):
+        cls.init()
         if cls.model_pack is None:
             return
-        pack_info = {}
-        for item in cls.train_infos:
-            soc_version = cls.get_soc_version_by_csv_file(item.data_file)
-            if pack_info.get(soc_version) is None:
-                pack_file_name = cls.op_type + "_" + soc_version + ".pkl"
-                pack_path = cls.get_pack_model_path(pack_file_name)
-                pack_info[soc_version] = PackDesc(cls.model_pack, pack_path)
-            # 最终打包时每一个训练流程只有一个模型用于打包，故此处特殊处理
-            model_prefix = f"{item.model_descs[0].model_name}_{item.handler_key}_{soc_version}"
-            handler_path = cls.get_handler_path(cls.op_type,
-                                                f"{model_prefix}.pkl")
-            key = item.handler_key
-            pack_info.get(soc_version).append(key, handler_path)
-        cls._pack(list(pack_info.values()))
+        cls._pack(cls.pack_infos)
 
     @classmethod
     def chunks(cls, lst, n):
@@ -240,14 +232,6 @@ class GeneralBuilder(OpModelBuilder, ABC):
             clear_tmp_file(tmp_device_data_paths)
 
     @classmethod
-    def get_soc_version_by_csv_file(cls, filename):
-        pattern = r'(Ascend.*?)([_|.])'
-        soc_version = re.search(pattern, filename)
-        if soc_version is None:
-            raise Exception(f"No soc_version found in file {filename}")
-        return soc_version.group(1)
-
-    @classmethod
     def filter_data(cls, filter_, data: pd.DataFrame, feature: pd.DataFrame, label: pd.DataFrame):
         if filter_ is None:
             return data, feature, label
@@ -257,28 +241,27 @@ class GeneralBuilder(OpModelBuilder, ABC):
 
     @classmethod
     def _modeling(cls, train_infos: List[TrainTestDesc]):
-        for item in train_infos:
-            for model_desc in item.model_descs:
+        for train_info in train_infos:
+            dataset = train_info.dataset
+            for model_desc in train_info.model_descs:
                 model_name, model, feature_ge = model_desc.get()
-                soc_version = cls.get_soc_version_by_csv_file(item.data_file)
+                soc_version = dataset.soc_version
                 cprint(f"Train: using regression model {model_name} for {cls.op_type} in platform"
-                       f" {soc_version} with handler key {item.handler_key}", on_color='on_red')
+                       f" {soc_version}", on_color='on_red')
 
                 # 获取训练数据
                 feature_generator = feature_ge()
-                dataset = CSVDataset(item.data_file, feature_generator)
+                dataset.set_feature_generator(feature_generator)
                 original_data = dataset.get_original_data()
                 feature, labels = dataset.get_dataset()
                 # 部分算子需要依据不同场景进行建模，在此处筛选相关数据
-                original_data, feature, labels = cls.filter_data(item.filter, original_data, feature, labels)
+                original_data, feature, labels = cls.filter_data(train_info.filter, original_data, feature, labels)
                 # 训练
                 op_handle = OperatorHandle(model, feature_generator)
                 model_process = ModelProcess(op_handle)
                 model_process.cross_validation(feature.to_numpy(), labels.to_numpy(), feature.columns)
                 # 模型保存
-                model_prefix = f"{model_name}_{item.handler_key}_{soc_version}"
-                model_save_path = cls.get_handler_path(cls.op_type,
-                                                       f"{model_prefix}.pkl")
+                model_save_path = model_desc.save_path
                 serialize(op_handle, model_save_path)
                 # 保存特征用于分析
                 data = copy.deepcopy(feature)
@@ -286,29 +269,28 @@ class GeneralBuilder(OpModelBuilder, ABC):
                 data["aicore_time(us)"] = labels
                 data["predict_time(us)"] = predict_time
                 data = pd.concat((data, dataset.data.iloc[:, 11:]), axis=1)
-                data.to_csv(f"{os.path.dirname(model_save_path)}/{model_prefix}_data.csv", index=False)
+                model_prefix = os.path.splitext(model_save_path)[0]
+                data.to_csv(f"{model_prefix}_data.csv", index=False)
 
     @classmethod
-    def _test(cls, infer_data_info: List[TrainTestDesc]):
-        for item in infer_data_info:
-            test_data_save_path = item.data_file
-
-            for model_desc in item.model_descs:
+    def _test(cls, test_infos: List[TrainTestDesc]):
+        for test_info in test_infos:
+            dataset = test_info.dataset
+            for model_desc in test_info.model_descs:
                 model_name, _, _ = model_desc.get()
-                soc_version = cls.get_soc_version_by_csv_file(item.data_file)
+                soc_version = dataset.soc_version
                 cprint(f"Test: using regression model {model_name} for {cls.op_type} in platform"
-                       f" {soc_version} with handler key {item.handler_key}", on_color='on_red')
+                       f" {soc_version}", on_color='on_red')
 
                 # 加载模型
-                model_prefix = f"{model_name}_{item.handler_key}_{soc_version}"
-                model_save_path = cls.get_handler_path(cls.op_type, f"{model_prefix}.pkl")
+                model_save_path = model_desc.save_path
                 op_handle = deserialization(model_save_path)
                 # 获取测试数据
                 feature_generator = op_handle.fea_ge
-                dataset = CSVDataset(test_data_save_path, feature_generator)
+                dataset.set_feature_generator(feature_generator)
                 original_data = dataset.get_original_data()
                 feature, labels = dataset.get_dataset()
-                original_data, feature, labels = cls.filter_data(item.filter, original_data, feature, labels)
+                original_data, feature, labels = cls.filter_data(test_info.filter, original_data, feature, labels)
                 predict_time = op_handle.model.predict(feature.to_numpy())
 
                 screen = original_data
@@ -317,7 +299,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
                 screen['relative_error'] = abs(real_time - predict_time) / (real_time + np.finfo(float).eps)
                 screen = screen.sort_values(by=['relative_error'])
                 pd.set_option('display.max_columns', None, 'display.width', 5000, 'display.max_rows', None)
-                cprint(screen[['Input Shapes', 'Input Data Types', 'Input Formats', 'Attributes',
+                cprint(screen[['Input Shapes', 'Input Data Types', 'Input Formats',
                                'aicore_time(us)', 'predict_time', 'relative_error']],
                        color='green')
 
@@ -330,7 +312,8 @@ class GeneralBuilder(OpModelBuilder, ABC):
                 data["predict_time(us)"] = predict_time
                 data = pd.concat((data, screen), axis=1)
 
-                data.to_csv(f"{os.path.dirname(model_save_path)}/{model_prefix}_test_data.csv", index=False)
+                model_prefix = os.path.splitext(model_save_path)[0]
+                data.to_csv(f"{model_prefix}_test_data.csv", index=False)
 
     @classmethod
     def _pack(cls, pack_infos: List[PackDesc]):
@@ -366,11 +349,11 @@ class GeneralBuilder(OpModelBuilder, ABC):
         for path in tmp_device_data_paths:
             if os.path.exists(path) and os.path.getsize(path) != 0:
                 dfs.append(pd.read_csv(path))
-            else:
-                flags = os.O_RDWR | os.O_CREAT
-                modes = stat.S_IWUSR | stat.S_IRUSR
-                fd = os.fdopen(os.open(path, flags, modes), 'w')
-                fd.close()
+                os.remove(path)
+            flags = os.O_RDWR | os.O_CREAT
+            modes = stat.S_IWUSR | stat.S_IRUSR
+            fd = os.fdopen(os.open(path, flags, modes), 'w')
+            fd.close()
 
         if dfs:
             df = pd.concat(dfs)
@@ -380,17 +363,8 @@ class GeneralBuilder(OpModelBuilder, ABC):
     @classmethod
     def _get_not_done_samples(cls, data_save_path, io_generator):
         def done_before(done_prof, desc):
-            matches = []
-            for _, row in done_prof.iterrows():
-                if row['Original Inputs'] == desc['Original Inputs'] and \
-                        row['Attributes'] == desc['Attributes']:
-                    match = True
-                else:
-                    match = False
-                matches.append(match)
-
-            pattern = pd.Series(matches)
-            match_item = done_prof[pattern]
+            match_item = done_prof.loc[(done_prof['Original Inputs'] == desc['Original Inputs']) &
+                                       (done_prof['Attributes'] == desc['Attributes'])]
             if match_item.empty:
                 return False
             return True

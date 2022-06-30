@@ -1,10 +1,14 @@
+import copy
+
 from xgboost import XGBRegressor
 
 from config import env
+from framework.dataset import CSVDataset
 from framework.model_base import PerformanceRegressor
 from template.builder.general_builder import CollectDataDesc
 from template.builder.general_builder import ModelDesc
 from template.builder.general_builder import GeneralBuilder
+from template.builder.general_builder import PackDesc
 from template.builder.general_builder import TrainTestDesc
 
 
@@ -33,11 +37,22 @@ class XGBTrainingOpBuilder(GeneralBuilder):
         test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, env.soc_version))
         cls.test_data_collects = [CollectDataDesc(test_io_generator, test_data_file)]
 
-        # 训练、测试过程设置
         for soc_version in cls.soc_versions:
             train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, soc_version))
             test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, soc_version))
-            train_desc = TrainTestDesc(train_data_file, None, models, 'common')
+            suffix = f"{soc_version}.pkl"
+            # 更新模型的保存路径
+            models_ = copy.deepcopy(models)
+            for model in models_:
+                model.update_save_path(cls.get_handler_path(cls.op_type, f"{model.model_name}_{suffix}"))
+            train_desc = TrainTestDesc(CSVDataset(train_data_file, soc_version=soc_version), None, models_)
             cls.train_infos.append(train_desc)
-            test_desc = TrainTestDesc(test_data_file, None, models, 'common')
+            test_desc = TrainTestDesc(CSVDataset(test_data_file, soc_version=soc_version), None, models_)
             cls.test_infos.append(test_desc)
+
+            # 打包流程设置
+            pack_path = cls.get_pack_model_path(cls.get_pack_file(cls.op_type, soc_version))
+            pack_desc = PackDesc(cls.model_pack, pack_path)
+            handler_path = models_[0].save_path
+            pack_desc.append("common", handler_path)
+            cls.pack_infos.append(pack_desc)
