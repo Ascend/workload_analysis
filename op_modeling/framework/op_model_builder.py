@@ -116,6 +116,7 @@ class OpModelBuilder(metaclass=ABCMeta):
             except Exception as error:
                 cprint(f"{error}", on_color="on_red")
                 traceback.print_exc()
+                prof.pop_op_origin_desc()
             finally:
                 op_task.force_del()
                 # 算子执行成功，data_manager添加内容

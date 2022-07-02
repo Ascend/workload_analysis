@@ -89,6 +89,9 @@ class Profile:
     def add_op_origin_desc(self, desc):
         self.current_origin_op_info.append(desc)
 
+    def pop_op_origin_desc(self):
+        self.current_origin_op_info.pop()
+
     def set_interval(self, interval):
         self.interval = interval
 
@@ -192,7 +195,8 @@ class Profile:
                 except Exception as e:
                     logging.error(f"Save original profile data error: {e}")
                     return False
-                self.err_op_desc.to_csv(self.err_origin_info_file, index=True)
+                df = pd.DataFrame(self.err_op_desc, columns=['Original Inputs', 'Original Outputs', "Attributes"])
+                df.to_csv(self.err_origin_info_file, index=True)
                 return True
 
         prof_dir = glob.glob(f"{self.tmp_dir}/PROF*")[0]
