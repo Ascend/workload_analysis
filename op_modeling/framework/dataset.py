@@ -68,6 +68,8 @@ class CSVDataset(DatasetBase):
             将字符串描述的shape转化为list
             eg. "1,2,3,4" -> [1,2,3,4]
             """
+            if shape_str == "":
+                return []
             str_list = shape_str.split(",")
             return [int(dim) for dim in str_list]
 

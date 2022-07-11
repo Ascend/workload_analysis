@@ -23,20 +23,7 @@ class XGBTrainingOpBuilder(GeneralBuilder):
     soc_versions = ['Ascend310']
 
     @classmethod
-    def init(cls):
-        cls.clear()
-        models = [
-            ModelDesc("XGBRegressor",
-                      PerformanceRegressor(estimator=cls.xgb_estimator, flops_dim=0, log_label=True), cls.op_feature),
-        ]
-
-        train_io_generator = cls.io_generator(cls.dtypes, cls.formats, n_sample=cls.train_sample, seed=0)
-        train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, env.soc_version))
-        cls.train_data_collects = [CollectDataDesc(train_io_generator, train_data_file)]
-        test_io_generator = cls.io_generator(cls.dtypes, cls.formats, n_sample=cls.test_sample, seed=1)
-        test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, env.soc_version))
-        cls.test_data_collects = [CollectDataDesc(test_io_generator, test_data_file)]
-
+    def init_modeling_by_models(cls, models):
         for soc_version in cls.soc_versions:
             train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, soc_version))
             test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, soc_version))
@@ -56,3 +43,23 @@ class XGBTrainingOpBuilder(GeneralBuilder):
             handler_path = models_[0].save_path
             pack_desc.append("common", handler_path)
             cls.pack_infos.append(pack_desc)
+
+    @classmethod
+    def init_modeling(cls):
+        cls.clear()
+        models = [
+            ModelDesc("XGBRegressor",
+                      PerformanceRegressor(estimator=cls.xgb_estimator, flops_dim=0, log_label=True), cls.op_feature),
+        ]
+        cls.init_modeling_by_models(models)
+
+    @classmethod
+    def init_data_collect(cls):
+        cls.clear()
+
+        train_io_generator = cls.io_generator(cls.dtypes, cls.formats, n_sample=cls.train_sample, seed=0)
+        train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, env.soc_version))
+        cls.train_data_collects = [CollectDataDesc(train_io_generator, train_data_file)]
+        test_io_generator = cls.io_generator(cls.dtypes, cls.formats, n_sample=cls.test_sample, seed=1)
+        test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, env.soc_version))
+        cls.test_data_collects = [CollectDataDesc(test_io_generator, test_data_file)]

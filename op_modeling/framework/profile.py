@@ -195,7 +195,7 @@ class Profile:
                 except Exception as e:
                     logging.error(f"Save original profile data error: {e}")
                     return False
-                df = pd.DataFrame(self.err_op_desc, columns=['Original Inputs', 'Original Outputs', "Attributes"])
+                df = pd.DataFrame(self.err_op_desc, columns=['Original Inputs', 'Original Outputs', 'Attributes'])
                 df.to_csv(self.err_origin_info_file, index=True)
                 return True
 

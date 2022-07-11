@@ -25,13 +25,12 @@ class ModelProcess:
     该类抽象了整个训练的流程，针对剥离出来的内容，设置基类保证行为有明确定义
     """
 
-    def __init__(self, op_handle, n_splits=5):
+    def __init__(self, op_handle):
         """
         :param op_handle: 模型本身需要开发人员自己定义，然后设置到这个流程中
         """
 
         self.op_handle: OperatorHandle = op_handle
-        self.n_splits = n_splits
 
     def print_feature_importance(self, feature_names):
         feature_importance = self.op_handle.model.get_feature_importance()
@@ -46,30 +45,33 @@ class ModelProcess:
             df = pd.DataFrame(features).sort_values(by=['importance'], ascending=False, ignore_index=True)
             cprint(df, color='green')
 
-    def cross_validation(self, data, labels, feature_names=None):
+    def train(self, data, labels, n_splits=5, feature_names=None):
         """
-        准备训练数据
+        训练过程，可以控制是否进行交叉验证和打印特征重要性
         """
         labels = labels.squeeze()
-        rkf = RepeatedKFold(n_splits=self.n_splits, n_repeats=1, random_state=0)
-        pd.set_option('display.max_columns', None, 'display.width', 5000)
+        # 是否进行交叉验证
+        if n_splits > 0:
+            rkf = RepeatedKFold(n_splits=n_splits, n_repeats=1, random_state=0)
+            pd.set_option('display.max_columns', None, 'display.width', 5000)
 
-        cv_scores = []
-        for k, (train, test) in enumerate(rkf.split(data)):
-            if len(labels.shape) == 1:
-                self.op_handle.model.fit(data[train, :], labels[train])
-                ret = dict(name=f"{k}-th cross validation", **self.evaluate_stage(data[test, :], labels[test]))
-            else:
-                self.op_handle.model.fit(data[train, :], labels[train, :])
-                ret = dict(name=f"{k}-th cross validation", **self.evaluate_stage(data[test, :], labels[test, :]))
-            cv_scores.append(ret)
+            cv_scores = []
+            for k, (train, test) in enumerate(rkf.split(data)):
+                if len(labels.shape) == 1:
+                    self.op_handle.model.fit(data[train, :], labels[train])
+                    ret = dict(name=f"{k}-th cross validation", **self.evaluate_stage(data[test, :], labels[test]))
+                else:
+                    self.op_handle.model.fit(data[train, :], labels[train, :])
+                    ret = dict(name=f"{k}-th cross validation", **self.evaluate_stage(data[test, :], labels[test, :]))
+                cv_scores.append(ret)
 
-        cprint(str(pd.DataFrame(cv_scores)), color='green')
+            cprint(str(pd.DataFrame(cv_scores)), color='green')
 
         self.train_stage(data, labels)
         # 如果有特征重要性信息，则打印重要性信息
+        if feature_names is None:
+            return
         self.print_feature_importance(feature_names)
-        return cv_scores
 
     def load_model(self, save_path):
         """

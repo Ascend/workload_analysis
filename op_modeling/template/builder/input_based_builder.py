@@ -50,7 +50,7 @@ class SingleInOpBuilder(GeneralBuilder):
         return filter_
 
     @classmethod
-    def init(cls):
+    def init_modeling(cls):
         cls.clear()
         # 此处可以设置多个模型进行对比训练
         models = [
@@ -58,17 +58,6 @@ class SingleInOpBuilder(GeneralBuilder):
             ModelDesc("LogPiecewiseLinear", LogRegressor(estimator=PiecewiseLinFitModel(n_break_point=3)),
                       cls.op_feature)
         ]
-
-        # 数据采集过程设置
-        # 训练数据
-        train_io_generator = cls.io_generator(dtypes=cls.dtypes, n_sample=cls.train_sample, seed=0)
-        # 数据采集过程，芯片型号由环境中获取
-        train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, env.soc_version))
-        cls.train_data_collects = [CollectDataDesc(train_io_generator, train_data_file)]
-        # 测试数据
-        test_io_generator = cls.io_generator(dtypes=cls.dtypes, n_sample=cls.test_sample, seed=1)
-        test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, env.soc_version))
-        cls.test_data_collects = [CollectDataDesc(test_io_generator, test_data_file)]
 
         for soc_version in cls.soc_versions:
             # 训练和推理过程，芯片型号由开发者指定
@@ -84,9 +73,12 @@ class SingleInOpBuilder(GeneralBuilder):
                 models_ = copy.deepcopy(models)
                 for model in models_:
                     model.update_save_path(cls.get_handler_path(cls.op_type, f"{model.model_name}_{suffix}"))
-                train_desc = TrainTestDesc(CSVDataset(train_data_file, soc_version=soc_version), filter_, models_)
+
+                train_desc = TrainTestDesc(CSVDataset(train_data_file, soc_version=soc_version),
+                                           filter_, models_, name=dtype)
                 cls.train_infos.append(train_desc)
-                test_desc = TrainTestDesc(CSVDataset(test_data_file, soc_version=soc_version), filter_, models_)
+                test_desc = TrainTestDesc(CSVDataset(test_data_file, soc_version=soc_version),
+                                          filter_, models_, name=dtype)
                 cls.test_infos.append(test_desc)
 
                 # 打包过程设置
@@ -96,6 +88,21 @@ class SingleInOpBuilder(GeneralBuilder):
                 key = dtype
                 pack_desc.append(key, handler_path)
             cls.pack_infos.append(pack_desc)
+
+    @classmethod
+    def init_data_collect(cls):
+        cls.clear()
+
+        # 数据采集过程设置
+        # 训练数据
+        train_io_generator = cls.io_generator(dtypes=cls.dtypes, n_sample=cls.train_sample, seed=0)
+        # 数据采集过程，芯片型号由环境中获取
+        train_data_file = cls.get_data_path(cls.op_type, cls.get_data_file(cls.op_type, env.soc_version))
+        cls.train_data_collects = [CollectDataDesc(train_io_generator, train_data_file)]
+        # 测试数据
+        test_io_generator = cls.io_generator(dtypes=cls.dtypes, n_sample=cls.test_sample, seed=1)
+        test_data_file = cls.get_data_path(cls.op_type, cls.get_test_data_file(cls.op_type, env.soc_version))
+        cls.test_data_collects = [CollectDataDesc(test_io_generator, test_data_file)]
 
 
 class BinaryInOpBuilder(SingleInOpBuilder):

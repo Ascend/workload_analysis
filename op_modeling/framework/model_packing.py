@@ -10,8 +10,8 @@ from framework.model_base import ModelBase
 
 
 def serialize(obj: any, file_path: str) -> None:
-    with os.fdopen(os.open(file_path, os.O_WRONLY | os.O_CREAT, stat.S_IRUSR | stat.S_IWUSR), 'wb') as f:
-        f.truncate()
+    with os.fdopen(os.open(file_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                           stat.S_IRUSR | stat.S_IWUSR), 'wb') as f:
         pickle.dump(obj, f)
 
 

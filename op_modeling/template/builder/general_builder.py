@@ -3,7 +3,6 @@ import os
 import copy
 import stat
 import time
-import re
 from abc import ABC, abstractmethod
 from multiprocessing import Process
 from typing import List
@@ -61,7 +60,7 @@ class TrainTestDesc:
     定义一个训练或测试过程的基本元素
     """
 
-    def __init__(self, dataset: CSVDataset, filter_, model_descs: List[ModelDesc]):
+    def __init__(self, dataset: CSVDataset, filter_, model_descs: List[ModelDesc], name=""):
         """
         :param dataset: 训练使用的数据集
         :param filter_: 用于筛选数据集的筛选器，为一个lamda表达式，返回值为pd.Series
@@ -70,6 +69,7 @@ class TrainTestDesc:
         self.dataset = dataset
         self.filter = filter_
         self.model_descs = model_descs
+        self.name=name
 
 
 class PackDesc:
@@ -109,15 +109,24 @@ class GeneralBuilder(OpModelBuilder, ABC):
 
     @classmethod
     @abstractmethod
-    def init(cls):
+    def init_data_collect(cls):
         """
         init函数中应定义的内容包括
         1. 数据生成策略（IOStrategy）
         2. 采集数据存储位置
-        3. 训练、测试使用的回归器和特征
-        4. 最终保存的评估模型
         """
-        raise Exception("init is not impl")
+        raise Exception("init_data_collect is not impl")
+
+    @classmethod
+    @abstractmethod
+    def init_modeling(cls):
+        """
+        init函数中应定义的内容包括
+        1. 训练、测试使用的回归器、特征、模型保存的路径
+        2. 需要打包的模型各路径及其在最终模型中的key
+        3. 最终保存的模型类别及其路径
+        """
+        raise Exception("init_modeling is not impl")
 
     @classmethod
     def clear(cls):
@@ -132,7 +141,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
         请在此处完成训练和测试用的数据集的处理
         :return:
         """
-        cls.init()
+        cls.init_data_collect()
         if mode == 'all' or mode == 'train':
             cls.data_collect_by_multi_process(cls.train_data_collects)
 
@@ -140,18 +149,18 @@ class GeneralBuilder(OpModelBuilder, ABC):
             cls.data_collect_by_multi_process(cls.test_data_collects)
 
     @classmethod
-    def modeling(cls):
-        cls.init()
-        cls._modeling(cls.train_infos)
+    def modeling(cls, mode="experiment"):
+        cls.init_modeling()
+        cls._modeling(cls.train_infos, mode)
 
     @classmethod
     def test(cls):
-        cls.init()
+        cls.init_modeling()
         cls._test(cls.test_infos)
 
     @classmethod
     def pack(cls):
-        cls.init()
+        cls.init_modeling()
         if cls.model_pack is None:
             return
         cls._pack(cls.pack_infos)
@@ -240,13 +249,19 @@ class GeneralBuilder(OpModelBuilder, ABC):
         return data[filter_series], feature[filter_series], label[filter_series]
 
     @classmethod
-    def _modeling(cls, train_infos: List[TrainTestDesc]):
+    def _modeling(cls, train_infos: List[TrainTestDesc], mode="experiment"):
+        """
+        依据train_info进行建模
+        :param train_infos: 训练过程的描述
+        :param mode: experiment/build. 分别对应交叉验证的关闭和开启
+        :return:
+        """
         for train_info in train_infos:
             dataset = train_info.dataset
             for model_desc in train_info.model_descs:
                 model_name, model, feature_ge = model_desc.get()
                 soc_version = dataset.soc_version
-                cprint(f"Train: using regression model {model_name} for {cls.op_type} in platform"
+                cprint(f"Train {train_info.name}: using regression model {model_name} for {cls.op_type} in platform"
                        f" {soc_version}", on_color='on_red')
 
                 # 获取训练数据
@@ -259,7 +274,14 @@ class GeneralBuilder(OpModelBuilder, ABC):
                 # 训练
                 op_handle = OperatorHandle(model, feature_generator)
                 model_process = ModelProcess(op_handle)
-                model_process.cross_validation(feature.to_numpy(), labels.to_numpy(), feature.columns)
+                if mode == "experiment":
+                    model_process.train(feature.to_numpy(), labels.to_numpy(), n_splits=5,
+                                        feature_names=feature.columns)
+                elif mode == "build":
+                    model_process.train(feature.to_numpy(), labels.to_numpy(), n_splits=0,
+                                        feature_names=None)
+                else:
+                    raise Exception("Unsupported modeling mode")
                 # 模型保存
                 model_save_path = model_desc.save_path
                 serialize(op_handle, model_save_path)
@@ -271,6 +293,8 @@ class GeneralBuilder(OpModelBuilder, ABC):
                 data = pd.concat((data, dataset.data.iloc[:, 11:]), axis=1)
                 model_prefix = os.path.splitext(model_save_path)[0]
                 data.to_csv(f"{model_prefix}_data.csv", index=False)
+                cprint(f"Train done: using regression model {model_name} for {cls.op_type} in platform"
+                       f" {soc_version}", on_color='on_green')
 
     @classmethod
     def _test(cls, test_infos: List[TrainTestDesc]):
@@ -279,7 +303,7 @@ class GeneralBuilder(OpModelBuilder, ABC):
             for model_desc in test_info.model_descs:
                 model_name, _, _ = model_desc.get()
                 soc_version = dataset.soc_version
-                cprint(f"Test: using regression model {model_name} for {cls.op_type} in platform"
+                cprint(f"Test {test_info.name}: using regression model {model_name} for {cls.op_type} in platform"
                        f" {soc_version}", on_color='on_red')
 
                 # 加载模型
