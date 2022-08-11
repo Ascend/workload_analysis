@@ -110,14 +110,19 @@ class OpModelBuilder(metaclass=ABCMeta):
             start = time.time()
             op_task = op(d, *io)
             prof.add_op_origin_desc(op_task.get_unique_desc())
-
+            success = True
             try:
                 op_task.run(prof)
             except Exception as error:
+                success = False
                 cprint(f"{error}", on_color="on_red")
                 traceback.print_exc()
                 prof.pop_op_origin_desc()
             finally:
                 op_task.force_del()
-                # 算子执行成功，data_manager添加内容
-                logging.info(f"{k} device_id={d.id}: {str(op_task)}, {time.time() - start}")
+                # 算子执行成功
+                if success:
+                    logging.info(f"success {k} device_id={d.id}: {str(op_task)}, {time.time() - start}")
+                # 算子执行失败
+                else:
+                    logging.info(f"failed {k} device_id={d.id}: {str(op_task)}, {time.time() - start}")
