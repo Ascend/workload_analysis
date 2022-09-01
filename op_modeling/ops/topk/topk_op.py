@@ -4,43 +4,7 @@ from framework.tensor_strategy import TensorStrategy, ValueStrategy
 from template.generator.random_shape_generator import RandomShapeValueGenerator
 from functools import reduce
 
-class RandomShapeValueGeneratorTopK(RandomShapeValueGenerator):
 
-    def get_shape_strategy(self, mode='product'):
-        x_shapes = []
-        x_formats = []
-        x_dtypes = []
-        for i in range(self.n_sample):
-            for x_dtype in self.dtype:
-                x_format = self.format[i % len(self.format)]
-                n_value = random.randint(1, 100)
-                c_value = random.randint(3, 64)
-                h_value = random.randint(16, 2048)
-                w_value = random.randint(16, 2048)
-                if x_format == 'NHWC':
-                    shape = [n_value, h_value, w_value, c_value]
-                elif x_format == 'NCHW':
-                    shape = [n_value, c_value, h_value, w_value]
-                else:
-                    # ND
-                    dim = random.randint(1, 5)
-                    shape = [random.randint(2, 2048) for _ in range(dim)]
-                    if self.get_size(shape) > 32768 and shape[dim-1] <= 16:
-                        shape[dim-1] = random.randint(16, 2048)
-                while self.get_size(shape) * 2 > self.size_of_half_gb:
-                    index = random.randint(0, len(shape) - 1)
-                    if index == len(shape) - 1 and self.get_size(shape) > 32768:
-                        shape[index] = max(int(shape[index] / 2), 16)
-                    else:
-                        shape[index] = max(int(shape[index] / 2), 1)
-                x_shapes.append(shape)
-                x_formats.append(x_format)
-                x_dtypes.append(x_dtype)
-        x_strategy = TensorStrategy()
-        if x_shapes is not None:
-            x_strategy.set_mode(mode)
-            x_strategy.format(x_formats).shape(x_shapes).dtype(x_dtypes)
-        return x_strategy
 
 class TopKOp(OpBase):
     # 初始化
@@ -55,7 +19,7 @@ class TopKOp(OpBase):
             .attr("dim", dim)
 
 
-class TopKIOGenerator(RandomShapeValueGeneratorTopK):
+class TopKIOGenerator(RandomShapeValueGenerator):
     def __init__(self, sample_dtype, sample_format, n_sample=0, seed=0):
         super().__init__(sample_dtype, sample_format, n_sample)
 
@@ -71,6 +35,31 @@ class TopKIOGenerator(RandomShapeValueGeneratorTopK):
             values_strategy,
             indices_strategy,
         ]
+
+    def get_shape_strategy(self, mode='product'):
+        x_shapes = []
+        x_formats = []
+        x_dtypes = []
+        for i in range(self.n_sample):
+            for x_dtype in self.dtype:
+                dim = random.randint(1, 5)
+                shape = [random.randint(2, 2048) for _ in range(dim)]
+                if self.get_size(shape) > 32768 and shape[dim-1] <= 16:
+                    shape[dim-1] = random.randint(16, 2048)
+                while self.get_size(shape) * 2 > self.size_of_half_gb:
+                    index = random.randint(0, len(shape) - 1)
+                    if index == len(shape) - 1 and self.get_size(shape) > 32768:
+                        shape[index] = max(int(shape[index] / 2), 16)
+                    else:
+                        shape[index] = max(int(shape[index] / 2), 1)
+                x_shapes.append(shape)
+                x_formats.append("ND")
+                x_dtypes.append(x_dtype)
+        x_strategy = TensorStrategy()
+        if x_shapes is not None:
+            x_strategy.set_mode(mode)
+            x_strategy.format(x_formats).shape(x_shapes).dtype(x_dtypes)
+        return x_strategy
 
     def gen_strategies(self, x_strategy):
         x_shapes = x_strategy.shapes
@@ -139,7 +128,6 @@ class TopKIOGenerator(RandomShapeValueGeneratorTopK):
         largest=True
         [x, k_value, k_tensor, values, indices] = assemble_strategy
         # 创建字典并更新
-        k_dict={"value":0}
-        k_dict["value"]=k_value
+        k_dict={"value":k_value}
         k_tensor.update(k_dict)
         return [x, k_tensor, values, indices, sorted, largest, dim]

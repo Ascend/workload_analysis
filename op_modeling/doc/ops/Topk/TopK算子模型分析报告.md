@@ -37,3 +37,5 @@
 ![Alt](image/最大深度对误差的影响.png)
 
 <center>最大深度对误差的影响</center>
+
+- 通过以上超参数比较，学习率为0.10, n_estimators=500, max_depth=4, subsample=1, colsample_bytree=0.9, 即可达到较为理想的结果。
