@@ -45,16 +45,16 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
         ksize_lists = []
         strides_lists = []
         for x1_shape, x1_dtype, padding in zip(x1_shapes, x1_dtypes, paddings):
-            strides_h_value = random.randint(1,64)
-            strides_w_value = random.randint(1,64)
-            strides_value = [1, strides_h_value, strides_w_value, 1]
-            strides_lists.append(strides_value)
-            ksize_h_value = random.randint(1, 21)
-            ksize_w_value = random.randint(1, 21)
-            while ksize_h_value * ksize_w_value > 255 :
-                ksize_h_value = random.randint(1, int(ksize_h_value / 2))
-                ksize_w_value = random.randint(1, int(ksize_w_value / 2))
+            ksize_h_value = random.randint(3, 10)
+            ksize_w_value = random.randint(3, 10)
+            # while ksize_h_value * ksize_w_value > 255 :
+            #     ksize_h_value = random.randint(1, int(ksize_h_value / 2))
+            #     ksize_w_value = random.randint(1, int(ksize_w_value / 2))
             if padding == 'SAME':   # x边缘用0填充
+                strides_h_value = random.randint(1,ksize_h_value)
+                strides_w_value = random.randint(1,ksize_w_value)
+                strides_value = [1, strides_h_value, strides_w_value, 1]
+                strides_lists.append(strides_value)
                 ksize_value = [1, ksize_h_value, ksize_w_value, 1]
                 ksize_lists.append(ksize_value)
                 x2_h_value = math.ceil(x1_shape[1] / strides_h_value)
@@ -68,6 +68,10 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
                 ksize_w_value = min(ksize_w_value, x1_shape[2])
                 ksize_value = [1, ksize_h_value, ksize_w_value, 1]
                 ksize_lists.append(ksize_value)
+                strides_h_value = random.randint(1,ksize_h_value)
+                strides_w_value = random.randint(1,ksize_w_value)
+                strides_value = [1, strides_h_value, strides_w_value, 1]
+                strides_lists.append(strides_value)
                 x2_h_value = math.ceil((x1_shape[1] - ksize_h_value + 1) / strides_h_value)
                 x2_w_value = math.ceil((x1_shape[2] - ksize_w_value + 1) / strides_w_value)
                 x2_shape = [x1_shape[0], x2_h_value, x2_w_value, x1_shape[3]]
