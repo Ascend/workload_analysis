@@ -1,8 +1,8 @@
 import random
+import math
 from framework.op_base import OpBase
 from framework.tensor_strategy import TensorStrategy, ValueStrategy
 from template.generator.random_shape_generator import RandomShapeValueGenerator
-import math
 
 
 class PoolingOp(OpBase):
@@ -33,7 +33,8 @@ class PoolingIOGenerator(RandomShapeValueGenerator):
         dilation_strategy] = self.gen_w_s_p_d_strategies(x_strategy, global_pooling_strategy)
         ceil_mode_strategy = self.get_value_strategy([0, 1], size=size, rand_func=random.choice)
         data_format_strategy = self.get_value_strategy(['NCHW'], size=size, rand_func=random.choice)
-        y_strategy =  self.gen_y_strategy(x_strategy, global_pooling_strategy, window_strategy, pad_strategy, stride_strategy, \
+        y_strategy =  self.gen_y_strategy(x_strategy, global_pooling_strategy, window_strategy, 
+        pad_strategy, stride_strategy, \
         dilation_strategy, data_format_strategy, ceil_mode_strategy)
 
         self.strategys = [
@@ -77,10 +78,12 @@ class PoolingIOGenerator(RandomShapeValueGenerator):
                 y_shape = [x_shape[0], x_shape[1], 1, 1]
             else:
                 if(ceil_mode == 0):
-                    y_shape = [x_shape[0], x_shape[1], math.ceil(((x_shape[2]+pad[0]+pad[1]-dilation[0]*(window[0]-1)-1) / stride[0]))+1,\ 
+                    y_shape = [x_shape[0], x_shape[1], math.ceil(((
+                        x_shape[2]+pad[0]+pad[1]-dilation[0]*(window[0]-1)-1) / stride[0]))+1,\
                     math.ceil(((x_shape[3]+pad[2]+pad[3]-dilation[2]*(window[1]-1)-1) / stride[1]))+1]
                 else:
-                    y_shape = [x_shape[0], x_shape[1], int(((x_shape[2]+pad[0]+pad[1]-dilation[0]*(window[0]-1)-1) / stride[0]))+1, \
+                    y_shape = [x_shape[0], x_shape[1], int(((x_shape[2]+pad[0]+pad[1]-dilation[0]*
+                        (window[0]-1)-1) / stride[0]))+1, \
                     int(((x_shape[3]+pad[2]+pad[3]-dilation[2]*(window[1]-1)-1) / stride[1]))+1]
             y_shapes.append(y_shape)
             y_dtypes.append(y_dtype)
