@@ -24,7 +24,8 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
         y_strategy = x1_strategy
         size = len(x1_strategy.shapes)
         padding_strategy = self.get_value_strategy(['SAME', 'VALID'], size = size, rand_func = random.choice)
-        [x2_strategy, grad_strategy, ksize_strategy, strides_strategy] = self.gen_strategies(x1_strategy, padding_strategy)
+        [x2_strategy, grad_strategy, ksize_strategy, 
+        strides_strategy] = self.gen_strategies(x1_strategy, padding_strategy)
         self.strategys = [
             x1_strategy,
             x2_strategy,
@@ -42,8 +43,8 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
         ksize_h_value = random.randint(3, 10)
         ksize_w_value = random.randint(3, 10)
         if padding == 'SAME':   # x边缘用0填充
-            strides_h_value = random.randint(1,ksize_h_value)
-            strides_w_value = random.randint(1,ksize_w_value)
+            strides_h_value = random.randint(1, ksize_h_value)
+            strides_w_value = random.randint(1, ksize_w_value)
             strides_value = [1, strides_h_value, strides_w_value, 1]
             strides_lists.append(strides_value)
             ksize_value = [1, ksize_h_value, ksize_w_value, 1]
@@ -59,8 +60,8 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
             ksize_w_value = min(ksize_w_value, x1_shape[2])
             ksize_value = [1, ksize_h_value, ksize_w_value, 1]
             ksize_lists.append(ksize_value)
-            strides_h_value = random.randint(1,ksize_h_value)
-            strides_w_value = random.randint(1,ksize_w_value)
+            strides_h_value = random.randint(1, ksize_h_value)
+            strides_w_value = random.randint(1, ksize_w_value)
             strides_value = [1, strides_h_value, strides_w_value, 1]
             strides_lists.append(strides_value)
             x2_h_value = math.ceil((x1_shape[1] - ksize_h_value + 1) / strides_h_value)
@@ -68,7 +69,7 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
             x2_shape = [x1_shape[0], x2_h_value, x2_w_value, x1_shape[3]]
             x2_shapes.append(x2_shape)
             grad_shapes.append(x2_shape)
-        return x2_shapes, grad_shapes, ksize_lists, strides_lists
+        return [x2_shapes, grad_shapes, ksize_lists, strides_lists]
 
     def gen_strategies(self, x1_strategy, padding_strategy):
         x1_shapes = x1_strategy.shapes
@@ -81,7 +82,7 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
         ksize_lists = []
         strides_lists = []
         for x1_shape, x1_dtype, padding in zip(x1_shapes, x1_dtypes, paddings):
-            x2_shapes, grad_shapes, ksize_lists, strides_lists = self.gen_shape(x1_shapes, x1_shapes)
+            [x2_shapes, grad_shapes, ksize_lists, strides_lists] = self.gen_shape(x1_shapes, x1_shapes)
             x2_dtype = x1_dtype
             x2_dtypes.append(x2_dtype)
             grad_dtype = x1_dtype
