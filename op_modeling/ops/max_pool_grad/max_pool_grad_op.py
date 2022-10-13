@@ -35,58 +35,40 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
             strides_strategy,
             padding_strategy,
         ]
-    def gen_shape(self, x1_shape, padding):
-        x2_shapes = []
-        grad_shapes = []
-        ksize_lists = []
-        strides_lists = []
-        ksize_h_value = random.randint(3, 10)
-        ksize_w_value = random.randint(3, 10)
-        if padding == 'SAME':   # x边缘用0填充
-            strides_h_value = random.randint(1, ksize_h_value)
-            strides_w_value = random.randint(1, ksize_w_value)
-            strides_value = [1, strides_h_value, strides_w_value, 1]
-            strides_lists.append(strides_value)
-            ksize_value = [1, ksize_h_value, ksize_w_value, 1]
-            ksize_lists.append(ksize_value)
-            x2_h_value = math.ceil(x1_shape[1] / strides_h_value)
-            x2_w_value = math.ceil(x1_shape[2] / strides_w_value)
-            x2_shape = [x1_shape[0], x2_h_value, x2_w_value, x1_shape[3]]
-            x2_shapes.append(x2_shape)
-            grad_shapes.append(x2_shape)
-        else:  # x边缘不用0填充
-            # VALID模式下，ksize_h_value, ksize_w_value不能超过x_shape[1],x_shape[2]
-            ksize_h_value = min(ksize_h_value, x1_shape[1])
-            ksize_w_value = min(ksize_w_value, x1_shape[2])
-            ksize_value = [1, ksize_h_value, ksize_w_value, 1]
-            ksize_lists.append(ksize_value)
-            strides_h_value = random.randint(1, ksize_h_value)
-            strides_w_value = random.randint(1, ksize_w_value)
-            strides_value = [1, strides_h_value, strides_w_value, 1]
-            strides_lists.append(strides_value)
-            x2_h_value = math.ceil((x1_shape[1] - ksize_h_value + 1) / strides_h_value)
-            x2_w_value = math.ceil((x1_shape[2] - ksize_w_value + 1) / strides_w_value)
-            x2_shape = [x1_shape[0], x2_h_value, x2_w_value, x1_shape[3]]
-            x2_shapes.append(x2_shape)
-            grad_shapes.append(x2_shape)
-        return [x2_shapes, grad_shapes, ksize_lists, strides_lists]
-
     def gen_strategies(self, x1_strategy, padding_strategy):
         x1_shapes = x1_strategy.shapes
         x1_dtypes = x1_strategy.dtypes
         paddings = padding_strategy.get()
-        x2_dtypes = []
         x2_shapes = []
-        grad_shapes = []
-        grad_dtypes = []
+        x2_dtypes = []
         ksize_lists = []
         strides_lists = []
         for x1_shape, x1_dtype, padding in zip(x1_shapes, x1_dtypes, paddings):
-            [x2_shapes, grad_shapes, ksize_lists, strides_lists] = self.gen_shape(x1_shapes, x1_shapes)
+            strides_h_value = random.randint(1, 5)
+            strides_w_value = random.randint(1, 5)
+            strides_value = [1, strides_h_value, strides_w_value, 1]
+            strides_lists.append(strides_value)
+            ksize_h_value = random.randint(1, 5)
+            ksize_w_value = random.randint(1, 5)
+            if padding == 'SAME':   # x边缘用0填充
+                ksize_value = [1, ksize_h_value, ksize_w_value, 1]
+                ksize_lists.append(ksize_value)
+                x2_h_value = math.ceil(x1_shape[1] / strides_h_value)
+                x2_w_value = math.ceil(x1_shape[2] / strides_w_value)
+                x2_shape = [x1_shape[0], x2_h_value, x2_w_value, x1_shape[3]]
+                x2_shapes.append(x2_shape)
+            else:  # x边缘不用0填充
+                # VALID模式下，ksize_h_value, ksize_w_value不能超过x_shape[1],x_shape[2]
+                ksize_h_value = min(ksize_h_value, x1_shape[1])
+                ksize_w_value = min(ksize_w_value, x1_shape[2])
+                ksize_value = [1, ksize_h_value, ksize_w_value, 1]
+                ksize_lists.append(ksize_value)
+                x2_h_value = math.ceil((x1_shape[1] - ksize_h_value + 1) / strides_h_value)
+                x2_w_value = math.ceil((x1_shape[2] - ksize_w_value + 1) / strides_w_value)
+                x2_shape = [x1_shape[0], x2_h_value, x2_w_value, x1_shape[3]]
+                x2_shapes.append(x2_shape)
             x2_dtype = x1_dtype
             x2_dtypes.append(x2_dtype)
-            grad_dtype = x1_dtype
-            grad_dtypes.append(grad_dtype)
         # value类型
         ksize_strategy = ValueStrategy()
         ksize_strategy.append(ksize_lists)
@@ -94,12 +76,10 @@ class MaxPoolGradIOGenerator(RandomShapeValueGenerator):
         strides_strategy.append(strides_lists)
         # tensor类型
         formats = ['NHWC'] * len(x2_shapes)
-        x2_strategy = TensorStrategy()
-        grad_strategy = TensorStrategy()
+        x2_strategy = grad_strategy = TensorStrategy()
         if x2_shapes is not None:
             x2_strategy.format(formats).shape(x2_shapes).dtype(x2_dtypes)
             x2_strategy.set_mode('zip')
-        if grad_shapes is not None:
             grad_strategy.format(formats).shape(x2_shapes).dtype(x2_dtypes)
             grad_strategy.set_mode('zip')
         return [x2_strategy, grad_strategy, ksize_strategy, strides_strategy]
